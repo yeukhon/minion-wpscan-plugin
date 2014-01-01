@@ -23,7 +23,6 @@ class WPScanPlugin(ExternalProcessPlugin):
         #                               configs.get('enumerate_opts')
         target = configs['target']
         commands = ["--url", target]
-
         #if wordlist_url:
         #    commands += ["--wordlist", word_list_url, "--threads", 20]
         #if enumerate_opts:
