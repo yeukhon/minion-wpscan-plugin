@@ -2,7 +2,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import re
+
 from minion.plugins.base import ExternalProcessPlugin
+from report import split_sections
 
 class WPScanPlugin(ExternalProcessPlugin):
 
@@ -41,7 +44,9 @@ class WPScanPlugin(ExternalProcessPlugin):
             self.report_finish("STOPPED")
         elif process_status == 0:
             summary = "Successful wpscan session"
-            description = self.stdout
+            r = re.compile("\033\[[0-9;]+m")
+            description = r.sub("", self.stdout)
+            description = split_sections(description)
             self.report_issues([
                 {"Summary": summary,
                  "Description": description,
