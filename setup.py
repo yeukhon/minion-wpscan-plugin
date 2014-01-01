@@ -7,7 +7,7 @@ from setuptools import setup
 install_requires = []
 
 setup(name="minion-wpscan-plugin",
-      version="0.1",
+      version="0.0",
       description="wpscan plugin for Minion",
       url="https://github.com/yeukhon/minion-wpscan-plugin/",
       author="Yeuk Hon Wong",
