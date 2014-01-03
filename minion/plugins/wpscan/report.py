@@ -62,7 +62,7 @@ def _split(line, delim):
     else:
         return None, None
 
-with open("/home/vagrant/wpscan10", "r") as f:
+with open("/home/vagrant/wpscan12", "r") as f:
     stdout = f.read()
 
 
@@ -160,6 +160,57 @@ def get_themes(lines):
             break
     return vuln_list
 
+def parse_ascii_table(table):
+    users = []
+    # split on the border divider
+    _s1 = re.split("\+\-*\+", table)
+    table = "".join(_s1)
+    # split on the column divider
+    _s2 = re.split("\|\s", table)
+    # now by default without password cracking it should have 3 columns
+    # but we know exactly how many by counting the items between the
+    # two ----\n
+    for index, line in enumerate(_s2[1:]):
+        if line in _s2[0]:
+            break
+    
+    # because the way we split end up with an extra "empty column", so
+    # we must step at the actual number of column + 1
+    # and the index at the point we break is exactly the number of 
+    # actual column, so the total size is that +1 (plus we are zero-based)
+    step_size = index + 1
+
+    # we actuall start reading the first row from _s2[index+2:]
+    _s3 = _s2[index+2:]
+    for step in range(0, len(_s3), step_size):
+        # -1 here in step size because we are zero-based indexing
+        row = _s3[step:step+step_size-1]
+        user = copy.deepcopy(USER)
+        user["id"] = row[0]
+        user["login"] = row[1]
+        user["name"] = row[2]
+        if len(row) < 4:
+            user["password"] = None
+        else:
+            user["password"] = row[3]
+        users.append(user)
+    return users
+
+def get_users(lines):
+    table_line = None
+    for index, line in enumerate(lines):
+        if "No users found" in lines:
+            return users
+        elif "We found the following" in line and "user/s" in line:
+            table_line = line
+            break
+    if table_line:
+        _table_lines = table_line.split("\n")
+        table = "".join(_table_lines[1:])
+        return parse_ascii_table(table)
+    else:
+        return []       
+
 lines = re.split("\[\+\]|\[\!\]", stdout)
 import pprint
 
@@ -169,3 +220,4 @@ print "readme: ", is_readme_exists(lines)
 print "theme in use: ", get_wp_theme_in_use(lines)
 print "plugins: ", pprint.pprint(get_plugins(lines))
 print "themes: ", pprint.pprint(get_themes(lines))
+print "users: ", pprint.pprint(get_users(lines))
