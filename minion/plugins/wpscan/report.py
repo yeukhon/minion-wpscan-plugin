@@ -2,6 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import copy
 import re
 
 def split_lines(stdout):
@@ -12,6 +13,41 @@ def split_lines(stdout):
             return lines[index+1:]
     raise Exception("wpscan report does not contain proper header")
 
+WORDPRESS = {
+    "version": "",
+    "is_multi_site": False,
+    "is_outdated": False,
+    "readme_exists": True,
+    "theme": "",
+    "vulnerabilities": []
+}
+WORDPRESS_VULN = {
+    "title": "",
+    "references": [],
+    "fixed_since": ""
+}
+
+PLUGIN = {
+    "name": "",
+    "vulnerabilities": {}
+}
+THEME = {
+    "name": "",
+    "vulnerabilities": {}
+}
+PLUGIN_OR_THEME_VULN = {
+    "title": "",
+    "references": [],
+    "fixed_since": ""
+}
+
+USER = {
+    "id": "",
+    "login": "",
+    "name": "",
+    "password": ""
+}
+# report structure looks like this https://github.com/yeukhon/minion-wpscan-plugin/issues/1
 
 def is_single_statement(next_line, next_second_line):
     watch_list = ("[!]", "[+]")
@@ -19,84 +55,50 @@ def is_single_statement(next_line, next_second_line):
         if next_line.startswith(criminal) or next_second_line.startswith(criminal):
             return True
     return False
+def _split(line, delim):
+    splits = line.split(delim, 1)
+    return splits[0].strip(), splits[1].strip()
 
 with open("/home/vagrant/wpscan10", "r") as f:
     stdout = f.read()
 
-# wpscan is memory expensive so let's not create lots
-# of lists as we slice
-all_lines = (stdout.split("\n"))
 
-# key will be the actual statement
-# value is the detail or None if it is a single statement
-attentions = {}
-info = {}
+def is_readme_exists(lines):
+    for line in lines:
+        if "readme.html" in line:
+            return True
+    return False
 
-# first, skip the header by locate the 2nd _____
-_i = all_lines.index("_______________________________________________________________",1)
-starting_index = _i + 5  # skip 5 lines to skip __, \n, | URL, | Started and \n
+def get_version(lines):
+    for line in lines:
+        if "WordPress version" in line:
+            r = re.compile("\d.\d.\d")
+            return r.search(line).group()
+    return "unknown"
 
-# next we want to get the single info and attentions.
-remaining_lines = all_lines[starting_index:]
-for index, line in enumerate(remaining_lines):
-    # if it is single line either next two line is [!] or [+]
-    # some sections are broken up by \n so we need to check at least two lines!
-    _next_line = remaining_lines[index+1]
-    _next_second_line = remaining_lines[index+2]
-    is_single = is_single_statement(_next_line, _next_second_line)
-    if is_single:
-        if line.startswith("[!]"):
-            clean_line = line.split("[!] ")[-1]
-            attentions[clean_line] = None 
-        elif line.startswith("[+]"):
-            clean_line = line.split("[+] ")[-1]
-            info[clean_line] = None
-    else:
-        starting_index = index
-        break   # stop here, move to the second section
+def get_wp_vuln(lines):
+    wp_vuln = None
+    vuln_list = []
+    for line in lines:
+        if "identified from the version number" in line:
+            # split the whole block on " | "or " | * " starting symbol
+            _lines = filter(None, re.split("\||\\s*\|\\s*\*", line))
+            # the end result is _lines[0] == title and the rest groups of title,references
+            for line in _lines[1:]:
+                label, value = _split(line, ":")
+                if label == "Title":
+                    wp_vuln = copy.deepcopy(WORDPRESS_VULN)
+                    wp_vuln["title"] = value
+                    vuln_list.append(wp_vuln)
+                elif label == "Reference":
+                    wp_vuln["references"].append(value)
+                elif label == "Fixed in":
+                    wp_vuln["fixed_since"] = value
+    return vuln_list
 
-# right now, the section should be multi-line [!] and [+]
-# it should be identitfying the vulnerabilities from the version number
-remaining_lines = remaining_lines[starting_index:]
-if "identified from the version number" in remaining_lines[0]:
-    clean_line = line.split("[!]")[-1].replace(":", "").strip()
-    current_att_list = []
-    current_vuln = {}
-    reference_urls = []
-    attentions[clean_line] = current_att_list
-
-    starting_index = 2  # remember we slice again, so index starts at 0 and we skip [!] and "| " lines
-    remaining_lines = remaining_lines[starting_index:]
-
-    # every new vulnerability starts with Title
-    # and each new vulnerability is a dict contains title, one or more reference
-    for index, line in enumerate(remaining_lines):
-        line = line.strip()
-        if line.startswith("| *"):
-            clean_line = line.split("| * ")[-1]
-            _sline = clean_line.split(":", 1)
-            header, rest_line = _sline[0], _sline[1].strip()
-            if header == "Title":
-                # remember to save the reference urls for the previous one
-                # before zeroing out current_vuln and reference_urls
-                current_vuln["Reference"] = tuple(reference_urls)
-
-                reference_urls = []
-                current_vuln = {}
-                current_vuln[header] = rest_line
-                current_att_list.append(current_vuln)
-            else:
-                if header == "Fixed in":
-                    current_vuln[header] = rest_line
-                else:
-                    reference_urls.append(rest_line)
-        elif line.startswith("[+]") or line.startswith("[!]"):
-            starting_index = index
-            break
+lines = re.split("\[\+\]|\[\!\]", stdout)
 import pprint
-pprint.pprint(attentions)
-pprint.pprint(info)
-# next should be detecting the Wordpress theme in used
-if "Wordpress theme in used" in remaining_lines[starting_index]:
-    header = remaining_lines[starting_index].split("[+]").strip()
-    header = "Wordpress theme in used"
+
+pprint.pprint(get_wp_vuln(lines))
+print "version: ", get_version(lines)
+print "readme: ", is_readme_exists(lines)
