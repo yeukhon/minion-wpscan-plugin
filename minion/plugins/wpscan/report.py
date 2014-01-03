@@ -62,7 +62,7 @@ def _split(line, delim):
     else:
         return None, None
 
-with open("/home/vagrant/wpscan12", "r") as f:
+with open("/home/vagrant/wpscan10", "r") as f:
     stdout = f.read()
 
 
@@ -114,7 +114,7 @@ def get_plugins(lines):
     plugin_vuln = {}
     for line in lines:
         if "No plugins found" in lines:
-            return copy.deepcopy({})
+            return []
         elif "We found" in line and "plugins" in line:
             _lines = filter(None, re.split("\||\\s*\|\\s*\*", line))
             for line in _lines[1:]:
@@ -133,7 +133,33 @@ def get_plugins(lines):
                     plugin_vuln["fixed_since"] = value
             break
     return vuln_list
-            
+
+def get_themes(lines):
+    vuln_list = []
+    theme = {}
+    theme_vuln = {}
+    for line in lines:
+        if "No themes found" in lines:
+            return []
+        elif "We found" in line and "themes" in line:
+            _lines = filter(None, re.split("\||\\s*\|\\s*\*", line))
+            for line in _lines[1:]:
+                label, value = _split(line, ":")
+                if label == "Name":
+                    theme = copy.deepcopy(THEME)
+                    vuln_list.append(theme)
+                    theme["name"] = value
+                elif label == "Title":
+                    theme_vuln = copy.deepcopy(PLUGIN_OR_THEME_VULN)
+                    theme["vulnerabilities"] = theme_vuln
+                    theme_vuln["title"] = value
+                elif label == "Reference":
+                    theme_vuln["references"].append(value)
+                elif label == "Fixed in":
+                    theme_vuln["fixed_since"] = value
+            break
+    return vuln_list
+
 lines = re.split("\[\+\]|\[\!\]", stdout)
 import pprint
 
@@ -142,3 +168,4 @@ print "version: ", get_version(lines)
 print "readme: ", is_readme_exists(lines)
 print "theme in use: ", get_wp_theme_in_use(lines)
 print "plugins: ", pprint.pprint(get_plugins(lines))
+print "themes: ", pprint.pprint(get_themes(lines))
