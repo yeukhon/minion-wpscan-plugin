@@ -62,7 +62,7 @@ def _split(line, delim):
     else:
         return None, None
 
-with open("/home/vagrant/wpscan12", "r") as f:
+with open("/home/vagrant/wpscan14", "r") as f:
     stdout = f.read()
 
 
@@ -186,13 +186,13 @@ def parse_ascii_table(table):
         # -1 here in step size because we are zero-based indexing
         row = _s3[step:step+step_size-1]
         user = copy.deepcopy(USER)
-        user["id"] = row[0]
-        user["login"] = row[1]
-        user["name"] = row[2]
+        user["id"] = row[0].strip()
+        user["login"] = row[1].strip()
+        user["name"] = row[2].strip() or None
         if len(row) < 4:
             user["password"] = None
         else:
-            user["password"] = row[3]
+            user["password"] = row[3].strip()
         users.append(user)
     return users
 
