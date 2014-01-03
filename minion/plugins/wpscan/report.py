@@ -247,7 +247,7 @@ def dictize_report(stdout):
     lines = re.split("\[\+\]|\[\!\]", stdout)
 
     wordpress_vuln = get_wp_vuln(lines)
-    version = get_wp_vuln(lines)
+    version = get_version(lines)
     theme_in_use = get_wp_theme_in_use(lines)
     plugins = get_plugins(lines)
     themes = get_themes(lines)
@@ -268,6 +268,70 @@ def dictize_report(stdout):
     }
 
     return report
+
+BASIC_FURTHER_INFO = [
+    {
+        "URL": "http://codex.wordpress.org/Hardening_WordPress",
+        "Title": "WordPress Codex - Hardening WordPress Security",
+    },
+    {
+        "URL": "https://cve.mitre.org/cgi-bin/cvekey.cgi?keyword=wordpress",
+        "Title": "Wordpress - Common Vulnerabilities and Exposures"
+    }
+]
+
+FURTHER_INFO_ON_README = [
+    {
+        "URL": "http://wordpress.org/support/topic/readmehtml-is-security-hole",
+        "Title": "WordPress Support - readme.html is security hole?"
+    },
+]
+FURTHER_INFO_ON_README += BASIC_FURTHER_INFO
+
+_issues = {
+    "readme_exists":
+        {
+            "Code": "WPSCAN-0",
+            "Summary": "readme.html exists",
+            "Description": "The readme.html can be used to find the version of the WordPress the target is using. \
+This is a low-risk security item. WordPress hacker can also find out version by looking at the meta tag or the RSS \
+feed.",
+            "Severity": "Low",
+            "URLs": [ {"URL": None, "Extra": None} ],
+            "FurtherInfo": FURTHER_INFO_ON_README
+        },
+    "wordpress_vulnerable":
+        {
+            "Code": "WPSCAN-1",
+            "Summary": "{count} vulnerabilities identified for WordPress {version}",
+            "Description": "Target WordPress installation is running version {version}. There are {count} vulnerabilities \
+identified from this version. Each vulnerability is reported below.",
+            "Severity": "High",
+            "URLs": [ {"URL": None, "Extra": None} ],
+            "FurtherInfo": BASIC_FURTHER_INFO
+        }
+}
+
+def format_issue(issue_key, format_list):
+    issue = copy.deepcopy(_issues[issue_key])
+    for component in format_list:
+        for component_name, kwargs in component.items():
+            issue[component_name] = issue[component_name].format(**kwargs)
+    return issue
+
+def get_issues(report):
+    issues = []
+    version = report["wordpress"]["version"]
+    wp_vuln = report["wordpress"]["vulnerabilities"]
+    if wp_vuln:
+        count = len(wp_vuln)
+        issues.append(
+            format_issue('wordpress_vulnerable',
+                [{"Summary": {"count": count, "version": version}},
+                 {"Description": {"count": count, "version": version}}]))
+    if report["wordpress"]["readme_exists"]:
+        issues.append(_issues["readme_exists"])
+    return issues
 
 def debug():
     import pprint
