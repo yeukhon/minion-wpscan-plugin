@@ -62,7 +62,7 @@ def _split(line, delim):
     else:
         return None, None
 
-with open("/home/vagrant/wpscan10", "r") as f:
+with open("/home/vagrant/wpscan12", "r") as f:
     stdout = f.read()
 
 
@@ -97,6 +97,7 @@ def get_wp_vuln(lines):
                     wp_vuln["references"].append(value)
                 elif label == "Fixed in":
                     wp_vuln["fixed_since"] = value
+            break
     return vuln_list
 
 def get_wp_theme_in_use(lines):
@@ -106,7 +107,33 @@ def get_wp_theme_in_use(lines):
             name = r.findall(line)[-1]
             return name
     return "unknown"
-    
+
+def get_plugins(lines):
+    vuln_list = []
+    plugin = {}
+    plugin_vuln = {}
+    for line in lines:
+        if "No plugins found" in lines:
+            return copy.deepcopy({})
+        elif "We found" in line and "plugins" in line:
+            _lines = filter(None, re.split("\||\\s*\|\\s*\*", line))
+            for line in _lines[1:]:
+                label, value = _split(line, ":")
+                if label == "Name":
+                    plugin = copy.deepcopy(PLUGIN)
+                    vuln_list.append(plugin)
+                    plugin["name"] = value
+                elif label == "Title":
+                    plugin_vuln = copy.deepcopy(PLUGIN_OR_THEME_VULN)
+                    plugin["vulnerabilities"] = plugin_vuln
+                    plugin_vuln["title"] = value
+                elif label == "Reference":
+                    plugin_vuln["references"].append(value)
+                elif label == "Fixed in":
+                    plugin_vuln["fixed_since"] = value
+            break
+    return vuln_list
+            
 lines = re.split("\[\+\]|\[\!\]", stdout)
 import pprint
 
@@ -114,3 +141,4 @@ pprint.pprint(get_wp_vuln(lines))
 print "version: ", get_version(lines)
 print "readme: ", is_readme_exists(lines)
 print "theme in use: ", get_wp_theme_in_use(lines)
+print "plugins: ", pprint.pprint(get_plugins(lines))
