@@ -115,7 +115,8 @@ def get_plugins(lines):
     for line in lines:
         if "No plugins found" in lines:
             return []
-        elif "We found" in line and "plugins" in line:
+        elif ("We found" in line and "plugins" in line) or \
+             ("plugins found" in line):
             _lines = filter(None, re.split("\||\\s*\|\\s*\*", line))
             for line in _lines[1:]:
                 label, value = _split(line, ":")
