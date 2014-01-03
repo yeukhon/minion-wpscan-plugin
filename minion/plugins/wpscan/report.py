@@ -62,10 +62,6 @@ def _split(line, delim):
     else:
         return None, None
 
-with open("/home/vagrant/wpscan10", "r") as f:
-    stdout = f.read()
-
-
 def is_readme_exists(lines):
     for line in lines:
         if "readme.html" in line:
@@ -207,6 +203,7 @@ def get_users(lines):
         return get_users_from_enumeration(lines)
 
 def get_users_from_enumeration(lines):
+    table_line = None
     for index, line in enumerate(lines):
         if "No users found" in lines:
             return users
@@ -244,15 +241,43 @@ def get_users_from_brute_forcer(lines):
     else:
         return []
 
-lines = re.split("\[\+\]|\[\!\]", stdout)
-import pprint
+def dictize_report(stdout):
+    r = re.compile("\033\[[0-9;]+m")
+    stdout = r.sub("", stdout)
+    lines = re.split("\[\+\]|\[\!\]", stdout)
 
-print "wordpress: ", pprint.pprint(get_wp_vuln(lines))
+    wordpress_vuln = get_wp_vuln(lines)
+    version = get_wp_vuln(lines)
+    theme_in_use = get_wp_theme_in_use(lines)
+    plugins = get_plugins(lines)
+    themes = get_themes(lines)
+    users = get_users(lines)
+    readme_exists = is_readme_exists(lines)
 
-print "version: ", get_version(lines)
-print "readme: ", is_readme_exists(lines)
-print "theme in use: ", get_wp_theme_in_use(lines)
-print "plugins: ", pprint.pprint(get_plugins(lines))
-print "themes: ", pprint.pprint(get_themes(lines))
-print "users: ", pprint.pprint(get_users(lines))
+    wordpress = copy.deepcopy(WORDPRESS)
+    wordpress["version"] = version
+    wordpress["readme_exists"] = readme_exists
+    wordpress["theme"] = theme_in_use
+    wordpress["vulnerabilities"] = wordpress_vuln
 
+    report = {
+        "wordpress": wordpress,
+        "plugins": plugins,
+        "themes": themes,
+        "users": users
+    }
+
+    return report
+
+def debug():
+    import pprint
+    with open("/home/vagrant/wpscan10", "r") as f:
+        stdout = f.read()
+    lines = re.split("\[\+\]|\[\!\]", stdout)
+    print "wordpress: ", pprint.pprint(get_wp_vuln(lines))
+    print "version: ", get_version(lines)
+    print "readme: ", is_readme_exists(lines)
+    print "theme in use: ", get_wp_theme_in_use(lines)
+    print "plugins: ", pprint.pprint(get_plugins(lines))
+    print "themes: ", pprint.pprint(get_themes(lines))
+    print "users: ", pprint.pprint(get_users(lines))

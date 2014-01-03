@@ -5,7 +5,7 @@
 import re
 
 from minion.plugins.base import ExternalProcessPlugin
-from report import split_sections
+from report import dictize_report
 
 class WPScanPlugin(ExternalProcessPlugin):
 
@@ -44,12 +44,9 @@ class WPScanPlugin(ExternalProcessPlugin):
             self.report_finish("STOPPED")
         elif process_status == 0:
             summary = "Successful wpscan session"
-            r = re.compile("\033\[[0-9;]+m")
-            description = r.sub("", self.stdout)
-            description = split_sections(description)
             self.report_issues([
                 {"Summary": summary,
-                 "Description": description,
+                 "Description": dictize_report(self.stdout),
                 "Severity": "Info",
                 "URLs": [ {"URL": None, "Extra": None} ],
                 "FurtherInfo": [ {"URL": None, "Title": None} ]
