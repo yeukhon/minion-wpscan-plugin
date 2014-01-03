@@ -99,9 +99,18 @@ def get_wp_vuln(lines):
                     wp_vuln["fixed_since"] = value
     return vuln_list
 
+def get_wp_theme_in_use(lines):
+    for line in lines:
+        if "WordPress theme in use" in line:
+            r = re.compile("WordPress theme in use: (.+)")
+            name = r.findall(line)[-1]
+            return name
+    return "unknown"
+    
 lines = re.split("\[\+\]|\[\!\]", stdout)
 import pprint
 
 pprint.pprint(get_wp_vuln(lines))
 print "version: ", get_version(lines)
 print "readme: ", is_readme_exists(lines)
+print "theme in use: ", get_wp_theme_in_use(lines)
