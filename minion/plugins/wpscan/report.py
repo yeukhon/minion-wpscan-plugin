@@ -57,7 +57,10 @@ def is_single_statement(next_line, next_second_line):
     return False
 def _split(line, delim):
     splits = line.split(delim, 1)
-    return splits[0].strip(), splits[1].strip()
+    if len(splits) == 2:
+        return splits[0].strip(), splits[1].strip()
+    else:
+        return None, None
 
 with open("/home/vagrant/wpscan10", "r") as f:
     stdout = f.read()
