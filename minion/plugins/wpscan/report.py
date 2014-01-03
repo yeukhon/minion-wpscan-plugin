@@ -62,7 +62,7 @@ def _split(line, delim):
     else:
         return None, None
 
-with open("/home/vagrant/wpscan14", "r") as f:
+with open("/home/vagrant/wpscan10", "r") as f:
     stdout = f.read()
 
 
@@ -193,12 +193,20 @@ def parse_ascii_table(table):
         if len(row) < 4:
             user["password"] = None
         else:
-            user["password"] = row[3].strip()
+            user["password"] = row[3].strip() or None
         users.append(user)
     return users
 
 def get_users(lines):
     table_line = None
+    # if brute force is enable, we go straight to that.
+    text = "".join(lines)
+    if "Starting the password brute forcer" in text:
+        return get_users_from_brute_forcer(lines)
+    else:
+        return get_users_from_enumeration(lines)
+
+def get_users_from_enumeration(lines):
     for index, line in enumerate(lines):
         if "No users found" in lines:
             return users
@@ -210,15 +218,41 @@ def get_users(lines):
         table = "".join(_table_lines[1:])
         return parse_ascii_table(table)
     else:
-        return []       
+        return []
+
+def get_users_from_brute_forcer(lines):
+    seen_brute_force = False
+    linebreak_count = 0
+    table_lines = []
+    for index, line in enumerate(lines):
+        if "Brute Forcing" in line:
+            break
+    _lines = line.split("\n")
+    for index, line in enumerate(_lines):
+        if "Brute Forcing" in line:
+            seen_brute_force = True
+        elif seen_brute_force:
+            if linebreak_count == 2:
+                break
+            else:
+                if not line:
+                    linebreak_count += 1
+                else:
+                    table_lines += line.split("\n")
+    if table_lines:
+        return parse_ascii_table("\n".join(table_lines))
+    else:
+        return []
 
 lines = re.split("\[\+\]|\[\!\]", stdout)
 import pprint
 
-pprint.pprint(get_wp_vuln(lines))
+print "wordpress: ", pprint.pprint(get_wp_vuln(lines))
+
 print "version: ", get_version(lines)
 print "readme: ", is_readme_exists(lines)
 print "theme in use: ", get_wp_theme_in_use(lines)
 print "plugins: ", pprint.pprint(get_plugins(lines))
 print "themes: ", pprint.pprint(get_themes(lines))
 print "users: ", pprint.pprint(get_users(lines))
+
